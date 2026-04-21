@@ -3,39 +3,55 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Candy AR - Final</title>
+  <title>AR Sweet Catch - Precision</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
+    
+    /* HUD: 左右の余白をしっかり確保し、見切れを完全に防止 */
     #hud {
-      position: fixed; top: 20px; width: 100%; display: none;
-      justify-content: space-around; color: #FF69B4; font-size: 24px; font-weight: bold;
-      z-index: 1000; pointer-events: none; text-shadow: 0 0 5px #fff;
+      position: fixed; top: 20px; left: 10%; width: 80%;
+      display: none; justify-content: space-between; align-items: center;
+      z-index: 1000; pointer-events: none;
     }
+    
+    .hud-item {
+      padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 22px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      line-height: 1;
+    }
+    #score-box { background: #FF69B4; color: white; }
+    #time-box { background: rgba(0,0,0,0.6); color: white; border: 2px solid white; }
+
     #ui {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       z-index: 2000; display: flex; justify-content: center; align-items: center; pointer-events: none;
     }
     .btn {
-      padding: 20px 40px; font-size: 20px; background: #FF69B4; color: #fff;
-      border: none; border-radius: 50px; pointer-events: auto;
+      padding: 20px 45px; font-size: 22px; background: #FF69B4; color: #fff;
+      border: 4px solid white; border-radius: 50px; pointer-events: auto; font-weight: bold;
+    }
+    #res-screen {
+      display:none; text-align:center; background:rgba(255,255,255,0.98); padding:40px; border-radius:25px;
+      width: 70%; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
   </style>
 </head>
 <body>
 
   <div id="hud">
-    <div>GET: <span id="score">0</span></div>
-    <div>TIME: <span id="time">30</span></div>
+    <div id="score-box" class="hud-item">てんすう: <span id="score">0</span></div>
+    <div id="time-box" class="hud-item">あと: <span id="time">45</span></div>
   </div>
 
   <div id="ui">
     <div id="start-screen"><button id="start-btn" class="btn">ゲームをはじめる</button></div>
-    <div id="res-screen" style="display:none; text-align:center; background:#fff; padding:30px; border-radius:20px;">
-      <h2 style="color:#FF69B4">TIME UP!</h2>
-      <p style="font-size:30px">結果: <span id="final">0</span>こ</p>
-      <button id="retry-btn" class="btn">もう一回</button>
+    <div id="res-screen">
+      <h2 style="color:#FF69B4; font-size: 28px;">タイムアップ！</h2>
+      <p style="font-size:20px;">あつまったポイント</p>
+      <p id="final" style="font-size:60px; font-weight:bold; margin: 10px 0; color:#FF69B4;">0</p>
+      <button id="retry-btn" class="btn">もういっかい！</button>
     </div>
   </div>
 
@@ -45,24 +61,21 @@
   </a-scene>
 
   <script>
-    const scoreEl = document.getElementById('score');
-    const timeEl = document.getElementById('time');
-    const container = document.getElementById('targets');
-    const scene = document.querySelector('a-scene');
+    const scoreEl = document.getElementById('score'), timeEl = document.getElementById('time');
+    const container = document.getElementById('targets'), scene = document.querySelector('a-scene');
 
-    let score = 0, timeLeft = 30, active = false, timer;
+    let score = 0, timeLeft = 45, active = false, timers = [];
     let candyList = [];
 
-    // 開始処理
     async function init() {
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        await DeviceOrientationEvent.requestPermission();
+        try { await DeviceOrientationEvent.requestPermission(); } catch(e){}
       }
       start();
     }
 
     function start() {
-      score = 0; timeLeft = 30; active = true;
+      score = 0; timeLeft = 45; active = true;
       scoreEl.innerText = score; timeEl.innerText = timeLeft;
       document.getElementById('start-screen').style.display = 'none';
       document.getElementById('res-screen').style.display = 'none';
@@ -70,71 +83,106 @@
       
       container.innerHTML = '';
       candyList = [];
-      for(let i=0; i<8; i++) spawn();
+      
+      spawnLoop('pink', 900);  
+      spawnLoop('blue', 4000); 
+      spawnLoop('gold', 15000);
 
-      timer = setInterval(() => {
+      const mainTimer = setInterval(() => {
         timeLeft--; timeEl.innerText = timeLeft;
-        if(timeLeft <= 0) {
-          active = false; clearInterval(timer);
-          document.getElementById('hud').style.display = 'none';
-          document.getElementById('res-screen').style.display = 'block';
-          document.getElementById('final').innerText = score;
-        }
+        if(timeLeft <= 0) endGame(mainTimer);
       }, 1000);
+      timers.push(mainTimer);
     }
 
-    function spawn() {
+    function endGame(timer) {
+      active = false;
+      timers.forEach(t => clearInterval(t));
+      timers = [];
+      document.getElementById('hud').style.display = 'none';
+      document.getElementById('res-screen').style.display = 'block';
+      document.getElementById('final').innerText = score;
+      container.innerHTML = '';
+    }
+
+    function spawnLoop(type, interval) {
+      const t = setInterval(() => { if(active) spawn(type); }, interval);
+      timers.push(t);
+    }
+
+    function spawn(type) {
       const el = document.createElement('a-sphere');
-      el.setAttribute('radius', '0.3');
-      el.setAttribute('color', '#FF69B4');
-      const r = 3 + Math.random()*2;
-      const t = Math.random()*Math.PI*2;
-      el.setAttribute('position', `${Math.cos(t)*r} ${1+Math.random()*1.5} ${Math.sin(t)*r}`);
+      let config = { color: '#FF69B4', radius: 0.28, pts: 10, life: 7000 };
+      if(type === 'blue') config = { color: '#00BFFF', radius: 0.22, pts: 30, life: 5500 };
+      if(type === 'gold') config = { color: '#FFD700', radius: 0.18, pts: 100, life: 4000 };
+
+      el.setAttribute('radius', config.radius);
+      el.setAttribute('color', config.color);
+      el.dataset.pts = config.pts;
+
+      const dist = 3 + Math.random() * 2;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = (Math.random() - 0.4) * Math.PI * 0.6;
+      el.setAttribute('position', `${dist * Math.cos(phi) * Math.cos(theta)} ${1.6 + dist * Math.sin(phi)} ${dist * Math.cos(phi) * Math.sin(theta)}`);
+      
       container.appendChild(el);
       candyList.push(el);
+
+      setTimeout(() => {
+        if(el.parentNode) {
+          el.setAttribute('animation', 'property: scale; to: 0 0 0; dur: 400');
+          setTimeout(() => { if(el.parentNode) container.removeChild(el); }, 400);
+        }
+      }, config.life);
     }
 
-    // ★画面上の「見た目の位置」で判定するロジック
+    // 判定感度のコアロジック
     function handleTap(e) {
       if(!active) return;
       const touch = e.touches ? e.touches[0] : e;
-      const tapX = touch.clientX;
-      const tapY = touch.clientY;
-
       const camera = scene.camera;
       if(!camera) return;
 
-      candyList.forEach(el => {
-        if(el.getAttribute('visible') === false) return;
+      let closest = null;
+      let minDistance = 75; // ★判定の「厳しさ」：75px（指のサイズに最適化）
 
-        // 3Dの位置を画面の2Dピクセル座標に変換
+      candyList.forEach(el => {
+        if(!el.parentNode || el.getAttribute('scale')?.x === 0) return;
+
         const pos = new THREE.Vector3();
         el.object3D.getWorldPosition(pos);
         pos.project(camera);
 
+        // 3D座標を2Dスクリーン座標に変換
         const x = (pos.x + 1) * window.innerWidth / 2;
         const y = (-pos.y + 1) * window.innerHeight / 2;
 
-        // タップした場所とお菓子の中心が「100ピクセル以内」ならゲット
-        // ※この100を大きくすればもっとガバガバ（簡単）になります
-        const dist = Math.sqrt(Math.pow(tapX - x, 2) + Math.pow(tapY - y, 2));
+        const dist = Math.sqrt(Math.pow(touch.clientX - x, 2) + Math.pow(touch.clientY - y, 2));
         
-        if(dist < 100) { 
-          score++; scoreEl.innerText = score;
-          el.setAttribute('visible', 'false');
-          setTimeout(() => {
-            if(active) {
-              const r = 3 + Math.random()*2, t = Math.random()*Math.PI*2;
-              el.setAttribute('position', `${Math.cos(t)*r} ${1+Math.random()*1.5} ${Math.sin(t)*r}`);
-              el.setAttribute('visible', 'true');
-            }
-          }, 500);
+        // 判定範囲内、かつ「最も指の中心に近い」ものを1個選ぶ
+        if(dist < minDistance) {
+          minDistance = dist;
+          closest = el;
         }
       });
+
+      // 命中したときだけ処理（一番近い1つのみ）
+      if(closest) {
+        score += parseInt(closest.dataset.pts);
+        scoreEl.innerText = score;
+        
+        // ヒット時のフィードバック演出
+        closest.setAttribute('animation', 'property: scale; to: 2.5 2.5 2.5; dur: 150');
+        setTimeout(() => {
+          if(closest.parentNode) container.removeChild(closest);
+        }, 150);
+      }
     }
 
-    window.addEventListener('touchstart', handleTap);
+    // イベント登録
+    window.addEventListener('touchstart', handleTap, { passive: false });
     window.addEventListener('mousedown', handleTap);
+    
     document.getElementById('start-btn').addEventListener('click', init);
     document.getElementById('retry-btn').addEventListener('click', start);
   </script>
