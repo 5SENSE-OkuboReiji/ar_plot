@@ -9,7 +9,7 @@
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
     
-    /* HUD: 左右の余白をしっかり確保し、見切れを完全に防止 */
+    /* HUD: add horizontal padding to prevent clipping on mobile */
     #hud {
       position: fixed; top: 20px; left: 10%; width: 80%;
       display: none; justify-content: space-between; align-items: center;
@@ -41,17 +41,17 @@
 <body>
 
   <div id="hud">
-    <div id="score-box" class="hud-item">てんすう: <span id="score">0</span></div>
-    <div id="time-box" class="hud-item">あと: <span id="time">45</span></div>
+    <div id="score-box" class="hud-item">Score: <span id="score">0</span></div>
+    <div id="time-box" class="hud-item">Time Left: <span id="time">45</span></div>
   </div>
 
   <div id="ui">
-    <div id="start-screen"><button id="start-btn" class="btn">ゲームをはじめる</button></div>
+    <div id="start-screen"><button id="start-btn" class="btn">Start Game</button></div>
     <div id="res-screen">
-      <h2 style="color:#FF69B4; font-size: 28px;">タイムアップ！</h2>
-      <p style="font-size:20px;">あつまったポイント</p>
+      <h2 style="color:#FF69B4; font-size: 28px;">Time's up!</h2>
+      <p style="font-size:20px;">Points collected</p>
       <p id="final" style="font-size:60px; font-weight:bold; margin: 10px 0; color:#FF69B4;">0</p>
-      <button id="retry-btn" class="btn">もういっかい！</button>
+      <button id="retry-btn" class="btn">Play again</button>
     </div>
   </div>
 
@@ -136,7 +136,7 @@
       }, config.life);
     }
 
-    // 判定感度のコアロジック
+    // Core logic for hit-detection sensitivity
     function handleTap(e) {
       if(!active) return;
       const touch = e.touches ? e.touches[0] : e;
@@ -144,7 +144,7 @@
       if(!camera) return;
 
       let closest = null;
-      let minDistance = 75; // ★判定の「厳しさ」：75px（指のサイズに最適化）
+      let minDistance = 75; // hit threshold in pixels (tuned for finger size)
 
       candyList.forEach(el => {
         if(!el.parentNode || el.getAttribute('scale')?.x === 0) return;
@@ -153,25 +153,25 @@
         el.object3D.getWorldPosition(pos);
         pos.project(camera);
 
-        // 3D座標を2Dスクリーン座標に変換
+        // Convert 3D world coordinates to 2D screen coordinates
         const x = (pos.x + 1) * window.innerWidth / 2;
         const y = (-pos.y + 1) * window.innerHeight / 2;
 
         const dist = Math.sqrt(Math.pow(touch.clientX - x, 2) + Math.pow(touch.clientY - y, 2));
         
-        // 判定範囲内、かつ「最も指の中心に近い」ものを1個選ぶ
+        // Pick the single closest object within the threshold
         if(dist < minDistance) {
           minDistance = dist;
           closest = el;
         }
       });
 
-      // 命中したときだけ処理（一番近い1つのみ）
+      // Process only when a hit occurred (closest one only)
       if(closest) {
         score += parseInt(closest.dataset.pts);
         scoreEl.innerText = score;
         
-        // ヒット時のフィードバック演出
+        // Hit feedback animation
         closest.setAttribute('animation', 'property: scale; to: 2.5 2.5 2.5; dur: 150');
         setTimeout(() => {
           if(closest.parentNode) container.removeChild(closest);
@@ -179,12 +179,12 @@
       }
     }
 
-    // イベント登録
+    // Register input events
     window.addEventListener('touchstart', handleTap, { passive: false });
     window.addEventListener('mousedown', handleTap);
     
     document.getElementById('start-btn').addEventListener('click', init);
-    document.getElementById('retry-btn').addEventListener('click', start);
+    document.getElementById('retry-btn').addEventListener('click', startGame);
   </script>
 </body>
 </html>
