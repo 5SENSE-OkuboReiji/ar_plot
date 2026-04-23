@@ -235,7 +235,22 @@
     }
 
     document.getElementById('start-btn').addEventListener('click', startWithCountdown);
-    document.getElementById('retry-btn').addEventListener('click', start);
+    // Retry returns to the start screen (do not auto-start)
+    document.getElementById('retry-btn').addEventListener('click', () => {
+      // stop any running timers and clear active state
+      active = false;
+      timers.forEach(t => clearInterval(t));
+      timers = [];
+      container.innerHTML = '';
+      candyList = [];
+      score = 0;
+      timeLeft = 45;
+      scoreEl.innerText = score;
+      timeEl.innerText = timeLeft;
+      document.getElementById('hud').style.display = 'none';
+      document.getElementById('res-screen').style.display = 'none';
+      document.getElementById('start-screen').style.display = 'block';
+    });
   </script>
 </body>
 </html>
